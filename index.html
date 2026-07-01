@@ -1114,6 +1114,7 @@ select:focus,textarea:focus{
   box-shadow:inset 0 1.5px 0 rgba(255,255,255,0.70), var(--shadow-lg);
 }
 #toast.show{ transform:translate(-50%,0); opacity:1; pointer-events:all; }
+#toast-msg{ background:none; }
 #toast-bar{
   position:absolute; left:0; bottom:0; height:2px;
   background:rgba(242,249,255,0.72); border-radius:999px;
@@ -1469,7 +1470,29 @@ canvas{ background:transparent !important; }
 .dw-c-bot{ font-size:9px; font-weight:600; fill:rgba(255,255,255,0.62); font-family:'Inter',sans-serif; letter-spacing:0.06em; text-transform:uppercase; }
 .dw-leg{ width:100%; display:flex; flex-direction:column; gap:5px; padding:0 4px; }
 .dw-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; display:inline-block; }
-.toast-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; display:inline-block; }
+.toast-dot{
+  width:8px; height:8px; border-radius:50%; flex-shrink:0;
+  display:inline-flex; align-items:center; justify-content:center;
+  position:relative; transition:width 0.22s cubic-bezier(0.34,1.56,0.64,1), height 0.22s cubic-bezier(0.34,1.56,0.64,1);
+}
+.toast-dot.is-ok{
+  width:22px; height:22px;
+  background:var(--success) !important;
+  box-shadow:0 0 0 4px rgba(78,224,138,0.20), inset 0 1px 0 rgba(255,255,255,0.45);
+}
+.toast-check{ width:14px; height:14px; opacity:0; flex-shrink:0; }
+.toast-dot.is-ok .toast-check{
+  opacity:1;
+}
+.toast-dot.is-ok .toast-check path{
+  stroke-dasharray:20; stroke-dashoffset:20;
+  animation:toast-check-draw 0.36s 0.08s cubic-bezier(0.65,0,0.45,1) forwards;
+}
+@keyframes toast-check-draw{ to{ stroke-dashoffset:0; } }
+@media(prefers-reduced-motion:reduce){
+  .toast-dot.is-ok .toast-check path{ animation:none; stroke-dashoffset:0; }
+  .toast-dot{ transition:none; }
+}
 .dw-leg-item{ display:flex; align-items:center; gap:7px; font-size:11px; color:var(--text-2); }
 .dw-leg-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
 .dw-leg-l{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -1893,7 +1916,8 @@ th.sortable:hover{ color:var(--text); }
 }
 
 /* Toasts / notifications */
-.toast, [class*="toast"], .notification {
+/* Toasts / notifications — outer container only, NOT wildcard children */
+#toast, .ms-toast, .notification {
   background: linear-gradient(120deg,
     rgba(80,215,238,0.18) 0%,
     rgba(60,200,228,0.13) 100%) !important;
@@ -2366,7 +2390,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ══ TOAST / ALERTS ══ */
-.toast, [class*="toast"] {
+/* ══ TOAST / ALERTS ══ — outer container only */
+#toast, .ms-toast {
   background: linear-gradient(120deg,
     rgba(198,235,255,0.38) 0%,
     rgba(182,226,252,0.32) 100%) !important;
@@ -3216,7 +3241,11 @@ input:focus, select:focus, textarea:focus {
 
 <!-- ── TOAST ── -->
 <div id="toast" style="position:relative;">
-  <div class="toast-dot" id="toast-dot"></div>
+  <div class="toast-dot" id="toast-dot">
+    <svg class="toast-check" id="toast-check" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M5 12.5L10 17.5L19 7.5" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </div>
   <span id="toast-msg" style="flex:1;"></span>
   <button id="toast-undo-btn" style="display:none;" onclick="undoLastDelete()">↩ Undo</button>
   <div id="toast-bar" style="width:0%;"></div>
@@ -4827,7 +4856,18 @@ function toast(msg,type='ok',undoable=false,duration=3000){
   const btn=document.getElementById('toast-undo-btn');
   const bar=document.getElementById('toast-bar');
   const colors={ok:'var(--success)',warn:'var(--warn)',danger:'var(--danger)'};
-  dot.style.background=colors[type]||colors.ok;
+  if(type==='ok'){
+    // Re-trigger the draw-on animation even if the previous toast was also
+    // 'ok' — removing the class, forcing a reflow, then re-adding restarts
+    // the CSS animation cleanly. Cheap: one class toggle + one layout read,
+    // no extra DOM nodes, no JS-driven per-frame work.
+    dot.classList.remove('is-ok');
+    void dot.offsetWidth;
+    dot.classList.add('is-ok');
+  } else {
+    dot.classList.remove('is-ok');
+    dot.style.background=colors[type]||colors.ok;
+  }
   document.getElementById('toast-msg').textContent=msg;
   btn.style.display=undoable?'':'none';
   bar.style.transition='none'; bar.style.width='100%';
@@ -8310,7 +8350,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ─── TOAST ─── */
-.toast, [id*="toast"], [class*="toast-"] {
+/* ─── TOAST — outer container only, no wildcard children ─── */
+#toast, .ms-toast {
   background: rgba(210,240,255,0.26) !important;
   -webkit-backdrop-filter: blur(28px) saturate(2.1) brightness(1.12) !important;
           backdrop-filter: blur(28px) saturate(2.1) brightness(1.12) !important;
@@ -9225,7 +9266,7 @@ input:focus, select:focus, textarea:focus, #search-box:focus {
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    CHIPS / TAGS / PILLS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-.ms-chip, .topbar-pill, .auto-tag, .tag-editable, .variant, .ms-chip-l {
+.ms-chip, .topbar-pill, .auto-tag, .tag-editable, .variant {
   background: rgba(175,228,255,0.15) !important;
   -webkit-backdrop-filter: blur(18px) saturate(2.3) brightness(1.10) !important;
           backdrop-filter: blur(18px) saturate(2.3) brightness(1.10) !important;
@@ -9706,7 +9747,7 @@ input:focus, select:focus, textarea:focus, #search-box:focus {
 
 /* ━━━ CHIPS / TAGS / PILLS ━━━ */
 .ms-chip, .topbar-pill, .auto-tag,
-.tag-editable, .variant, .ms-chip-l {
+.tag-editable, .variant {
   background: rgba(192,230,255,0.08) !important;
   -webkit-backdrop-filter: blur(14px) brightness(1.08) !important;
           backdrop-filter: blur(14px) brightness(1.08) !important;
